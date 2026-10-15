@@ -36,16 +36,18 @@ Passwort für alle drei Personen: `demo`
 Zwei Ressourcen im selben Coolify-Projekt:
 
 1. **PostgreSQL** über die Datenbankvorlage anlegen. Die interne URL verwenden, die im Docker-Netz von Coolify erreichbar ist.
-2. **Application** aus diesem Git-Repo, Build Pack **Dockerfile**, Port **3000**.
+2. **Application** aus diesem Git-Repo, Build Pack **Dockerfile**. Unter **Ports Exposes** `3000` eintragen.
 
 Umgebungsvariablen der Anwendung:
 
 | Variable | Inhalt |
 | --- | --- |
-| `DATABASE_URL` | Interne Postgres-URL aus Schritt 1 |
+| `DATABASE_URL` | Interne Postgres-URL aus Schritt 1, nicht `localhost` |
 | `SESSION_SECRET` | Langer Zufallswert |
 
-Health Check: Pfad `/api/health`, der Container antwortet mit 200, sobald die Datenbank erreichbar ist. Domain und HTTPS über den Coolify-Proxy zuweisen. Die App lauscht auf `0.0.0.0` und `PORT`.
+Health Check: Pfad `/api/health`, der Container antwortet mit 200, sobald die Datenbank erreichbar ist. Domain und HTTPS über den Coolify-Proxy zuweisen.
+
+Die App lauscht auf `0.0.0.0` und `PORT` (Standard 3000) und zusätzlich auf Port **80**. Ohne den Port 80 zeigt Coolify beim Aufruf der Domain nur `404 page not found`, weil der Proxy standardmäßig Port 80 im Container anspricht. In der Domain-Angabe von Coolify beides möglich: `https://deine-domain` oder `https://deine-domain:3000`. Nach dieser Änderung neu deployen.
 
 Beim Start führt die App die Drizzle-Migration aus `drizzle/` aus und legt die Demo-Nutzer nur an, wenn noch niemand existiert. Ein Redeploy behält damit Wochenpläne und Funnel. Ein Volume an der App ist nicht nötig, weil alle Daten in Postgres liegen.
 
