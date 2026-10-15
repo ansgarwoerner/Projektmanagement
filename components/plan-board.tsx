@@ -24,8 +24,8 @@ const INITIAL: FormState = { error: null };
 
 const collisionDetection: CollisionDetection = (args) => {
   const hits = pointerWithin(args);
-  const collisions = hits.length > 0 ? hits : closestCorners(args);
-  return [...collisions].sort((left, right) => specificity(String(right.id)) - specificity(String(left.id)));
+  if (hits.length === 0) return closestCorners(args);
+  return [...hits].sort((left, right) => area(args.droppableRects.get(left.id)) - area(args.droppableRects.get(right.id)));
 };
 
 export function PlanBoard({
@@ -165,7 +165,7 @@ export function PlanBoard({
               </FilterLink>
             ))}
           </div>
-          <div className="grid grid-cols-2 items-start gap-2 xl:grid-cols-4">
+          <div className="sticky top-16 z-30 grid grid-cols-2 items-start gap-2 bg-paper/95 py-2 backdrop-blur-sm xl:grid-cols-4">
             {weeks.map((week) => (
               <WeekChip
                 key={week.start}
@@ -550,8 +550,7 @@ function resolveDrop(
   return null;
 }
 
-function specificity(id: string) {
-  if (id.startsWith("task:")) return 3;
-  if (id.startsWith("status:") || id === "inbox") return 2;
-  return 1;
+function area(rect: { width: number; height: number } | undefined) {
+  if (!rect) return Number.POSITIVE_INFINITY;
+  return rect.width * rect.height;
 }
