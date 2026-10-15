@@ -19,6 +19,9 @@ services:
     build: .
     ports:
       - "3000:3000"
+    expose:
+      - "80"
+      - "3000"
     environment:
       DATABASE_URL: postgres://marketing:marketing@db:5432/marketing
       SESSION_SECRET: local-dev-session-secret-change-me

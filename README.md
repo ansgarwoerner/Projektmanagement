@@ -33,10 +33,12 @@ Passwort für alle drei Personen: `demo`
 
 ## Coolify
 
+Die Anwendung liegt auf dem Branch **`main`**. Ein Deploy eines anderen Stands, oder von `main` bevor diese App dort war, liefert nur `404 page not found`, weil der Proxy keinen laufenden Dienst für die Domain hat.
+
 Zwei Ressourcen im selben Coolify-Projekt:
 
 1. **PostgreSQL** über die Datenbankvorlage anlegen. Die interne URL verwenden, die im Docker-Netz von Coolify erreichbar ist.
-2. **Application** aus diesem Git-Repo, Build Pack **Dockerfile**. Unter **Ports Exposes** `3000` eintragen.
+2. **Application** aus diesem Git-Repo, Branch **`main`**, Build Pack **Dockerfile**. Unter **Ports Exposes** `80` oder `3000` eintragen.
 
 Umgebungsvariablen der Anwendung:
 
