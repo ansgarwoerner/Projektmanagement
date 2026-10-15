@@ -1,6 +1,6 @@
 "use client";
 
-import { useDraggable, useDroppable } from "@dnd-kit/core";
+import { useDraggable } from "@dnd-kit/core";
 import { STATUS_LABEL, STATUSES, type Status } from "@/lib/constants";
 import type { TaskView } from "@/lib/types";
 import type { WeekWindow } from "@/lib/weeks";
@@ -26,32 +26,21 @@ export function TaskCard({
   onDelete: (id: string) => void;
 }) {
   const dragId = `task:${task.id}`;
-  const { attributes, listeners, setNodeRef: setDragRef, isDragging } = useDraggable({ id: dragId });
-  const { setNodeRef: setDropRef, isOver } = useDroppable({ id: dragId });
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id: dragId });
 
   return (
     <article
-      ref={(node) => {
-        setDragRef(node);
-        setDropRef(node);
-      }}
+      ref={setNodeRef}
       data-task-title={task.title}
-      className={`rounded-xl border bg-white p-3 ${isOver ? "border-teal" : "border-line"} ${
-        isDragging ? "opacity-40" : ""
-      }`}
+      className={`rounded-xl border border-line bg-white p-3 ${isDragging ? "opacity-40" : ""}`}
     >
-      <div className="flex items-start gap-2">
-        <button
-          type="button"
-          className="mt-0.5 cursor-grab touch-none rounded-md px-1 text-muted active:cursor-grabbing"
-          aria-label={`${task.title} ziehen`}
-          {...listeners}
-          {...attributes}
-        >
-          ::
-        </button>
-        <div className="min-w-0 flex-1">
-          <h3 className="break-words text-sm font-semibold leading-5">{task.title}</h3>
+      <div
+        className="cursor-grab touch-none select-none rounded-lg active:cursor-grabbing"
+        aria-label={`${task.title} ziehen`}
+        {...listeners}
+        {...attributes}
+      >
+        <h3 className="break-words text-sm font-semibold leading-5">{task.title}</h3>
           {task.notes ? <p className="mt-1 line-clamp-3 text-sm text-muted">{task.notes}</p> : null}
           <div className="mt-2 flex flex-wrap gap-1">
             {task.kind === "personal" ? <span className="badge bg-[#efe7d2] text-[#6a5420]">Persönlich</span> : null}
@@ -68,8 +57,10 @@ export function TaskCard({
             <p className="mt-2 text-xs text-muted">{task.ownerId === currentUserId ? "Du" : task.ownerName}</p>
           ) : null}
         </div>
-      </div>
-      <div className="mt-3 grid gap-2 sm:grid-cols-2">
+      <div
+        className="mt-3 grid gap-2"
+        onPointerDown={(event) => event.stopPropagation()}
+      >
         {task.weekStart ? (
           <label className="field">
             Status
@@ -121,7 +112,7 @@ export function TaskCard({
           </select>
         </label>
       </div>
-      <div className="mt-2 flex justify-end">
+      <div className="mt-2 flex justify-end" onPointerDown={(event) => event.stopPropagation()}>
         <button
           type="button"
           className="btn-danger"

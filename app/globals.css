@@ -94,7 +94,7 @@
   }
 
   .drop-target {
-    @apply rounded-2xl transition;
+    @apply select-none rounded-2xl transition;
   }
 
   .drop-target.is-over {

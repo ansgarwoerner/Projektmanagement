@@ -4,8 +4,8 @@ import {
   DndContext,
   DragOverlay,
   PointerSensor,
+  closestCorners,
   pointerWithin,
-  rectIntersection,
   useDroppable,
   useSensor,
   useSensors,
@@ -13,7 +13,7 @@ import {
   type DragEndEvent,
 } from "@dnd-kit/core";
 import Link from "next/link";
-import { useMemo, useState, useTransition, useActionState } from "react";
+import { useMemo, useRef, useState, useTransition, useActionState } from "react";
 import { createMarketingTask, createPersonalTask, deleteTask, moveTask, type FormState } from "@/app/actions";
 import { SubmitButton } from "@/components/submit-button";
 import { TaskCard, type MoveInput } from "@/components/task-card";
@@ -24,7 +24,7 @@ const INITIAL: FormState = { error: null };
 
 const collisionDetection: CollisionDetection = (args) => {
   const hits = pointerWithin(args);
-  const collisions = hits.length > 0 ? hits : rectIntersection(args);
+  const collisions = hits.length > 0 ? hits : closestCorners(args);
   return [...collisions].sort((left, right) => specificity(String(right.id)) - specificity(String(left.id)));
 };
 
@@ -49,8 +49,9 @@ export function PlanBoard({
 }) {
   const [error, setError] = useState<string | null>(null);
   const [activeId, setActiveId] = useState<string | null>(null);
+  const overIdRef = useRef<string | null>(null);
   const [pending, startTransition] = useTransition();
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }));
   const activeTask = tasks.find((task) => `task:${task.id}` === activeId) ?? null;
   const weekSet = useMemo(() => new Set(weeks.map((week) => week.start)), [weeks]);
 
@@ -87,8 +88,12 @@ export function PlanBoard({
     }
     setError(null);
     startTransition(async () => {
-      const result = await moveTask(input);
-      setError(result.error);
+      try {
+        const result = await moveTask(input);
+        setError(result.error);
+      } catch {
+        setError("Die Aufgabe konnte nicht verschoben werden.");
+      }
     });
   }
 
@@ -100,31 +105,55 @@ export function PlanBoard({
     });
   }
 
-  function onDragEnd(event: DragEndEvent) {
-    setActiveId(null);
-    const overId = event.over ? String(event.over.id) : "";
-    const active = String(event.active.id);
+  function finishDrag(active: string, overId: string) {
     if (!overId || overId === active) return;
     const source = tasks.find((task) => `task:${task.id}` === active);
     if (!source) return;
     const destination = resolveDrop(overId, source, tasks, selectedWeek);
-    if (!destination) return;
-    if ("error" in destination) {
-      setError(destination.error);
+    if (!destination || "error" in destination) {
+      if (destination && "error" in destination) setError(destination.error);
+      return;
+    }
+    if (destination.weekStart === source.weekStart && destination.status === source.status && !destination.beforeId) {
       return;
     }
     persist(destination);
+  }
+
+  function onDragEnd(event: DragEndEvent) {
+    const overId = event.over ? String(event.over.id) : (overIdRef.current ?? "");
+    overIdRef.current = null;
+    document.body.classList.remove("select-none");
+    setActiveId(null);
+    finishDrag(String(event.active.id), overId);
   }
 
   return (
     <DndContext
       sensors={sensors}
       collisionDetection={collisionDetection}
-      onDragStart={(event) => setActiveId(String(event.active.id))}
+      onDragStart={(event) => {
+        overIdRef.current = null;
+        document.body.classList.add("select-none");
+        setActiveId(String(event.active.id));
+      }}
+      onDragOver={(event) => {
+        if (event.over) overIdRef.current = String(event.over.id);
+      }}
       onDragEnd={onDragEnd}
-      onDragCancel={() => setActiveId(null)}
+      onDragCancel={(event) => {
+        const overId = overIdRef.current ?? "";
+        overIdRef.current = null;
+        document.body.classList.remove("select-none");
+        setActiveId(null);
+        finishDrag(String(event.active.id), overId);
+      }}
     >
-      <div className={`grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_22rem] ${pending ? "opacity-80" : ""}`} aria-busy={pending}>
+      <div
+        className={`grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_22rem] ${pending ? "opacity-80" : ""}`}
+        aria-busy={pending}
+        onDragStartCapture={(event) => event.preventDefault()}
+      >
         <section className="grid gap-4">
           <div className="flex flex-wrap gap-2" role="group" aria-label="Zielgruppe filtern">
             <FilterLink current={audienceFilter} value="all" week={selectedWeek}>
@@ -136,7 +165,7 @@ export function PlanBoard({
               </FilterLink>
             ))}
           </div>
-          <div className="grid grid-cols-2 gap-2 xl:grid-cols-4">
+          <div className="grid grid-cols-2 items-start gap-2 xl:grid-cols-4">
             {weeks.map((week) => (
               <WeekChip
                 key={week.start}
@@ -173,7 +202,7 @@ export function PlanBoard({
             </h2>
             <p className="mt-1 text-sm text-muted">Karten zwischen den Spalten oder nach oben in eine andere Woche ziehen.</p>
           </div>
-          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+          <div className="relative z-10 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
             {STATUSES.map((status) => (
               <KanbanColumn
                 key={status}
@@ -241,11 +270,12 @@ function WeekChip({
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: `week:${week.start}` });
   return (
-    <div ref={setNodeRef} className={`drop-target ${isOver ? "is-over" : ""}`}>
+    <div ref={setNodeRef} className={`drop-target relative z-0 ${isOver ? "is-over" : ""}`}>
       <Link
         href={href}
+        draggable={false}
         aria-current={selected ? "true" : undefined}
-        className={`panel block h-full px-3 py-3 ${selected ? "border-teal" : ""}`}
+        className={`panel block px-3 py-3 ${selected ? "border-teal" : ""}`}
       >
         <span className="block text-xs font-semibold uppercase tracking-wide text-muted">{week.label}</span>
         <span className="serif mt-1 block text-lg leading-tight">{week.rangeLabel}</span>
